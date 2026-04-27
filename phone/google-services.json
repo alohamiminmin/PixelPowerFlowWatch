@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "238182072780",
+    "project_id": "pixelpowerflow",
+    "storage_bucket": "pixelpowerflow.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:238182072780:android:4adea7455306a756159d69",
+        "android_client_info": {
+          "package_name": "com.example.pixelpowerflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfH2xECe-ntco62_l3AGmxqskln36hPXI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
