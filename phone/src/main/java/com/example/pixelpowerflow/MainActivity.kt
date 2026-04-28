@@ -106,13 +106,30 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
         }
     }
 
+// Phone側の MainActivity.kt 内
+
+    private fun sendSignalToWatch(path: String) {
+        val nodeClient = Wearable.getNodeClient(this)
+        val messageClient = Wearable.getMessageClient(this)
+
+        nodeClient.connectedNodes.addOnSuccessListener { nodes ->
+            for (node in nodes) {
+                messageClient.sendMessage(node.id, path, null)
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         Wearable.getDataClient(this).addListener(this)
+        // ウォッチに「送信開始」の合図を送る
+        sendSignalToWatch("/start_sync")
     }
 
     override fun onPause() {
         super.onPause()
+        // ウォッチに「送信停止」の合図を送る
+        sendSignalToWatch("/stop_sync")
         Wearable.getDataClient(this).removeListener(this)
     }
 
