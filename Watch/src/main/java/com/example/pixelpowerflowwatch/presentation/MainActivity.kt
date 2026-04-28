@@ -38,6 +38,13 @@ import java.util.*
 import kotlin.math.abs
 import android.util.Log
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Check
+import androidx.wear.compose.material.InlineSlider
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 
 // レシーバー
 class PowerConnectionReceiver : BroadcastReceiver() {
@@ -216,22 +223,84 @@ fun ChargingMonitorApp(activity: MainActivity) {
 
     // 設定ダイアログ
     if (showSettings) {
-        Dialog(showDialog = showSettings, onDismissRequest = { showSettings = false }) {
+        Dialog(
+            showDialog = showSettings,
+            onDismissRequest = { showSettings = false }
+        ) {
             val listState = rememberScalingLazyListState()
             ScalingLazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize().background(Color.Black)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                item { Text("Settings", fontSize = 14.sp, color = Color.White) }
                 item {
-                    CompactButton(
-                        onClick = {
-                            brightnessValue = (brightnessValue + 0.2f).let { if (it > 1f) 0.05f else it }
-                            activity.updateBrightness(brightnessValue)
-                        }
-                    ) { Text("Brightness Loop") }
+                    Text(
+                        text = "Settings",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                 }
-                item { CompactButton(onClick = { showSettings = false }) { Text("OK") } }
+
+// 1. 明るさ調整スライダー (1%刻み)
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = "Brightness: ${(brightnessValue * 100).toInt()}%",
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+
+                        InlineSlider(
+                            value = brightnessValue,
+                            onValueChange = { newValue ->
+                                // 0.01 (1%) 単位で丸めて設定 (範囲: 0.01 ~ 1.0)
+                                val roundedValue = (newValue * 100).toInt() / 100f
+                                brightnessValue = roundedValue.coerceIn(0.01f, 1.0f)
+                                activity.updateBrightness(brightnessValue)
+                            },
+                            increaseIcon = { Icon(Icons.Default.Add, "Increase") },
+                            decreaseIcon = { Icon(Icons.Default.Remove, "Decrease") },
+                            // 1%刻みで動くようにステップ数を設定 (100段階)
+                            steps = 99,
+                            valueRange = 0f..1f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                // 2. テーマカラー変更ボタン（現在は青と白の切り替え例）
+                item {
+                    Chip(
+                        onClick = {
+                            // customBlue = if (customBlue == Color(0xFF3460FB)) Color.White else Color(0xFF3460FB)
+                            // ※ 色を状態変数として管理している場合はここで切り替え
+                        },
+                        label = { Text("Theme Color") },
+                        secondaryLabel = { Text("Blue / Red") },
+                        icon = { Icon(Icons.Default.Palette, null) },
+                        colors = ChipDefaults.secondaryChipColors(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+
+                // 3. OKボタン
+                item {
+                    Button(
+                        onClick = { showSettings = false },
+                        colors = ButtonDefaults.primaryButtonColors(),
+                        modifier = Modifier.size(ButtonDefaults.SmallButtonSize)
+                    ) {
+                        Icon(Icons.Default.Check, null)
+                    }
+                }
             }
         }
     }
