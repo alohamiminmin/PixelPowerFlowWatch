@@ -23,5 +23,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "PixelPowerFlowWatch"
-include(":app", ":phone")
+include(":Watch", ":phone")
 
