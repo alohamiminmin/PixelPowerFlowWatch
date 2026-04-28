@@ -36,8 +36,9 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import android.util.Log
 
-// 充電検知レシーバー
+// レシーバー
 class PowerConnectionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_POWER_CONNECTED) {
@@ -52,7 +53,7 @@ class PowerConnectionReceiver : BroadcastReceiver() {
             val pendingIntent = PendingIntent.getActivity(context, 0, i, PendingIntent.FLAG_IMMUTABLE)
             val notification = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_charging)
-                .setContentTitle("Charging...")
+                .setContentTitle("Charging Started")
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .build()
@@ -110,22 +111,42 @@ fun ChargingMonitorApp(activity: MainActivity) {
         while (true) {
             val now = Date()
             val microAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+
+            android.util.Log.d("BatteryCheck", "取得した生の値(microAmps): $microAmps")
+
             currentMaDisplay = abs(microAmps / 1000)
+
+            android.util.Log.d("BatteryCheck", "表示用の値(mA): $currentMaDisplay")
+
             val status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
             isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
             batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
             currentTime = timeFormat.format(now)
             currentDate = dateFormat.format(now)
 
-            // DataLayer API で送信
+// Watch側の送信処理部分
             val putDataReq: PutDataRequest = PutDataMapRequest.create("/battery_status").run {
                 dataMap.putInt("current_ma", currentMaDisplay)
                 dataMap.putInt("level", batteryLevel)
                 dataMap.putBoolean("is_charging", isCharging)
+
+                // 毎回違う値を入れて強制同期させる
                 dataMap.putLong("timestamp", System.currentTimeMillis())
+
+                // 1. まず PutDataRequest 型に変換
                 asPutDataRequest()
-            }
+            }.setUrgent() // 2. その後で最優先設定をかける（ここがポイント）
+
+// 送信実行
             dataClient.putDataItem(putDataReq)
+                .addOnSuccessListener {
+                    Log.d("BatterySync", "Watch: 送信成功！")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("BatterySync", "Watch: 送信失敗...", e)
+                }
+            dataClient.putDataItem(putDataReq)
+                .addOnFailureListener { e -> Log.e("BatteryLog", "送信失敗", e) }
             delay(1000)
         }
     }
@@ -134,15 +155,19 @@ fun ChargingMonitorApp(activity: MainActivity) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = currentDate, color = Color.Gray, fontSize = (screenWidth * 0.07).sp)
             Text(text = currentTime, color = Color.Yellow, fontSize = (screenWidth * 0.13).sp)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) { // image_de0120 のエラー対策：閉じカッコ確認
                 Text(text = "$batteryLevel%", color = Color.White, fontSize = (screenWidth * 0.13).sp)
-                Text(text = if (isCharging) " ▲ " else " ▼ ", color = if (isCharging) Color.Blue else Color.Red)
-                Text(text = "${currentMaDisplay}mA", color = if (isCharging) Color.Blue else Color.Red, fontSize = (screenWidth * 0.13).sp)
+                Text(text = if (isCharging) " ▲ " else " ▼ ", color = if (isCharging) Color.Cyan else Color.Red)
+                Text(text = "${currentMaDisplay}mA", color = if (isCharging) Color.Cyan else Color.Red, fontSize = (screenWidth * 0.13).sp)
             }
         }
-        // 下部中央の設定ボタン
+
+        // 設定ボタン (Surfaceエラー回避のためBoxを使用)
         Box(modifier = Modifier.fillMaxSize().padding(bottom = 12.dp), contentAlignment = Alignment.BottomCenter) {
-            Box(modifier = Modifier.size(36.dp).background(Color.DarkGray.copy(alpha = 0.5f), CircleShape).clickable { showSettings = true }, contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.size(36.dp).background(Color.DarkGray.copy(alpha = 0.5f), CircleShape).clickable { showSettings = true },
+                contentAlignment = Alignment.Center
+            ) {
                 Text("⚙", fontSize = 18.sp, color = Color.White)
             }
         }
