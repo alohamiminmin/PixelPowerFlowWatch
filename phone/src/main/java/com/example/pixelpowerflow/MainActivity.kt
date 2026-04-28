@@ -60,8 +60,8 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 }
             }
 
-            // 同期判定（10秒以上空いたら切断とみなす）
-            val isSyncing = (currentTimeMillis - lastSyncMillis) < 10000 && lastSyncMillis != 0L
+            // 同期判定（30秒以上空いたら切断とみなす）
+            val isSyncing = (currentTimeMillis - lastSyncMillis) < 30000 && lastSyncMillis != 0L
 
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
