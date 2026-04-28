@@ -61,4 +61,5 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.firestore)
     implementation(libs.play.services.wearable)
+    implementation("com.google.android.gms:play-services-wearable:18.1.0")
 }
