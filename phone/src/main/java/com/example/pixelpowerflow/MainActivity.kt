@@ -18,12 +18,11 @@ import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 
 class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
-
     // 状態管理用の変数
-    private var currentMa by mutableIntStateOf(0)
-    private var batteryLevel by mutableIntStateOf(0)
+    private var currentMa by mutableStateOf(0)
+    private var batteryLevel by mutableStateOf(0)
     private var isCharging by mutableStateOf(false)
-    private var lastSyncTime by mutableStateOf("No Data")
+    private var lastSyncTime by mutableStateOf("No Data") // これを追加
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

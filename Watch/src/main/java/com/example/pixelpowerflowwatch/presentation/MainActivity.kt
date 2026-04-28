@@ -151,25 +151,68 @@ fun ChargingMonitorApp(activity: MainActivity) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = currentDate, color = Color.Gray, fontSize = (screenWidth * 0.07).sp)
-            Text(text = currentTime, color = Color.Yellow, fontSize = (screenWidth * 0.13).sp)
-            Row(verticalAlignment = Alignment.CenterVertically) { // image_de0120 のエラー対策：閉じカッコ確認
-                Text(text = "$batteryLevel%", color = Color.White, fontSize = (screenWidth * 0.13).sp)
-                Text(text = if (isCharging) " ▲ " else " ▼ ", color = if (isCharging) Color.Cyan else Color.Red)
-                Text(text = "${currentMaDisplay}mA", color = if (isCharging) Color.Cyan else Color.Red, fontSize = (screenWidth * 0.13).sp)
-            }
-        }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // 1. 日付 (曜日)
+            // 日付取得時に "yyyy/MM/dd (E)" などのフォーマットを使用している前提です
+            Text(
+                text = currentDate,
+                color = Color.Gray,
+                fontSize = (screenWidth * 0.07).sp,
+                style = MaterialTheme.typography.caption1
+            )
 
-        // 設定ボタン (Surfaceエラー回避のためBoxを使用)
-        Box(modifier = Modifier.fillMaxSize().padding(bottom = 12.dp), contentAlignment = Alignment.BottomCenter) {
-            Box(
-                modifier = Modifier.size(36.dp).background(Color.DarkGray.copy(alpha = 0.5f), CircleShape).clickable { showSettings = true },
-                contentAlignment = Alignment.Center
+            // 2. 時間
+            Text(
+                text = currentTime,
+                color = Color.Yellow,
+                fontSize = (screenWidth * 0.16).sp,
+                style = MaterialTheme.typography.display1
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 3. バッテリー残量 / 充放電流値
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Text("⚙", fontSize = 18.sp, color = Color.White)
+                Text(
+                    text = "$batteryLevel%",
+                    color = Color.White,
+                    fontSize = (screenWidth * 0.1).sp,
+                    style = MaterialTheme.typography.body1
+                )
+                Text(
+                    text = " / ",
+                    color = Color.Gray,
+                    fontSize = (screenWidth * 0.08).sp
+                )
+                Text(
+                    text = "${currentMaDisplay}mA",
+                    color = if (isCharging) Color.Green else Color.Red,
+                    fontSize = (screenWidth * 0.1).sp,
+                    style = MaterialTheme.typography.body1
+                )
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 4. CHARGE / DISCHARGE 表記
+            Text(
+                text = if (isCharging) "CHARGE" else "DISCHARGE",
+                color = if (isCharging) Color.Green else Color.LightGray,
+                fontSize = (screenWidth * 0.08).sp,
+                style = MaterialTheme.typography.button
+            )
         }
     }
 

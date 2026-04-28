@@ -5,14 +5,10 @@ plugins {
 
 android {
     namespace = "com.example.pixelpowerflowwatch"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.pixelpowerflowwatch"
+        applicationId = "com.example.pixelpowerflow"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
