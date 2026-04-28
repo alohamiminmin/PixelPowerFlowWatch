@@ -1,7 +1,7 @@
 package com.example.pixelpowerflow
 
 import android.os.Bundle
-import android.util.Log // これが重要です
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -10,24 +10,41 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.wearable.DataClient
-import com.google.android.gms.wearable.DataEventBuffer
-import com.google.android.gms.wearable.DataMapItem
-import com.google.android.gms.wearable.Wearable
+import com.google.android.gms.wearable.*
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
-    // 状態管理用の変数
+    // 1. 状態管理用の変数（クラス直下に配置）
     private var currentMa by mutableStateOf(0)
     private var batteryLevel by mutableStateOf(0)
     private var isCharging by mutableStateOf(false)
-    private var lastSyncTime by mutableStateOf("No Data") // これを追加
+    private var lastSyncTime by mutableStateOf("No Data")
+    private var lastSyncMillis by mutableStateOf(0L) // 判定用
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
+            // 2. UI内部での現在時刻管理
+            var currentTimeMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+            // 1秒ごとに現在時刻を更新するループ
+            LaunchedEffect(Unit) {
+                while (true) {
+                    currentTimeMillis = System.currentTimeMillis()
+                    delay(1000)
+                }
+            }
+
+            // 同期判定（最後に受信してから10秒以内なら接続中とみなす）
+            // ウォッチの送信間隔に合わせて秒数は調整してください
+            val isSyncing = (currentTimeMillis - lastSyncMillis) < 10000 && lastSyncMillis != 0L
+
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Column(
@@ -35,9 +52,18 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "Watch Data Monitor", fontSize = 18.sp, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(30.dp))
+                        // 同期ステータス表示
+                        Text(
+                            text = if (isSyncing) "● SYNCING" else "○ DISCONNECTED",
+                            color = if (isSyncing) Color(0xFF4CAF50) else Color.Red,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
 
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(text = "Watch Data Monitor", fontSize = 18.sp, color = Color.Gray)
+
+                        Spacer(modifier = Modifier.height(20.dp))
                         Text(text = "$batteryLevel%", fontSize = 72.sp)
 
                         val statusColor = if (isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
@@ -54,55 +80,32 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
 
     override fun onResume() {
         super.onResume()
-        // 1. リスナー登録
         Wearable.getDataClient(this).addListener(this)
         Log.d("BatterySync", "Phone: リスナーを登録しました。")
-
-        // 2. 明示的に接続デバイスを確認する（通信路の活性化）
-        Wearable.getNodeClient(this).connectedNodes
-            .addOnSuccessListener { nodes ->
-                if (nodes.isEmpty()) {
-                    Log.d("BatterySync", "Phone: 接続されているウォッチが見つかりません。Bluetoothを確認してください。")
-                } else {
-                    nodes.forEach { node ->
-                        Log.d("BatterySync", "Phone: ウォッチを検出しました！ 名前: ${node.displayName}")
-                    }
-                }
-            }
     }
+
     override fun onPause() {
         super.onPause()
-        // リスナーを解除
         Wearable.getDataClient(this).removeListener(this)
     }
 
+    // データを受信した時の処理
     override fun onDataChanged(dataEvents: DataEventBuffer) {
-        Log.d("BatterySync", "Phone: データ受信イベントを検知しました。数: ${dataEvents.count}")
-
-        dataEvents.forEach { event ->
-            val uri = event.dataItem.uri
-            Log.d("BatterySync", "Phone: 受信パス = ${uri.path}")
-
-            if (uri.path == "/battery_status") {
+        for (event in dataEvents) {
+            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/battery_status") {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
 
-                val newMa = dataMap.getInt("current_ma", -999)
-                val newLevel = dataMap.getInt("level", -999)
-                val newCharging = dataMap.getBoolean("is_charging", false)
+                currentMa = dataMap.getInt("current_ma")
+                batteryLevel = dataMap.getInt("level")
+                isCharging = dataMap.getBoolean("is_charging")
 
-                Log.d("BatterySync", "Phone: 解析成功 -> mA: $newMa, Level: $newLevel, Charging: $newCharging")
+                val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                lastSyncTime = sdf.format(Date())
 
-                if (newMa != -999) {
-                    currentMa = newMa
-                    batteryLevel = newLevel
-                    isCharging = newCharging
-
-                    val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
-                    lastSyncTime = sdf.format(java.util.Date())
-                } else {
-                    Log.e("BatterySync", "Phone: キー名 'current_ma' が見つかりませんでした。")
-                }
+                // 受信した時刻をミリ秒で記録
+                lastSyncMillis = System.currentTimeMillis()
+                Log.d("BatterySync", "Phone: データ更新検知 - ${currentMa}mA")
             }
         }
-    } // onDataChanged の閉じ
-} // MainActivity クラスの閉じ
+    }
+}
