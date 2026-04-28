@@ -1,5 +1,7 @@
 package com.example.pixelpowerflow
 
+import android.content.Context
+import android.os.BatteryManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -17,61 +19,87 @@ import com.google.android.gms.wearable.*
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
-    // 1. 状態管理用の変数（クラス直下に配置）
+    // Watch側の状態
     private var currentMa by mutableStateOf(0)
     private var batteryLevel by mutableStateOf(0)
     private var isCharging by mutableStateOf(false)
     private var lastSyncTime by mutableStateOf("No Data")
-    private var lastSyncMillis by mutableStateOf(0L) // 判定用
+    private var lastSyncMillis by mutableStateOf(0L)
+
+    // Phone自身の状態
+    private var phoneMa by mutableStateOf(0)
+    private var phoneLevel by mutableStateOf(0)
+    private var isPhoneCharging by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // BatteryManagerの取得
+        val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+
         setContent {
-            // 2. UI内部での現在時刻管理
             var currentTimeMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-            // 1秒ごとに現在時刻を更新するループ
+            // 1秒ごとの更新ループ
             LaunchedEffect(Unit) {
                 while (true) {
                     currentTimeMillis = System.currentTimeMillis()
+
+                    // Phone自身の情報を取得
+                    val microAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+                    phoneMa = abs(microAmps / 1000)
+                    phoneLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                    val status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
+                    isPhoneCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                            status == BatteryManager.BATTERY_STATUS_FULL)
+
                     delay(1000)
                 }
             }
 
-            // 同期判定（最後に受信してから10秒以内なら接続中とみなす）
-            // ウォッチの送信間隔に合わせて秒数は調整してください
+            // 同期判定（10秒以上空いたら切断とみなす）
             val isSyncing = (currentTimeMillis - lastSyncMillis) < 10000 && lastSyncMillis != 0L
 
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // 同期ステータス表示
+                        // --- Watch セクション ---
+                        Text("WATCH MONITOR", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         Text(
                             text = if (isSyncing) "● SYNCING" else "○ DISCONNECTED",
                             color = if (isSyncing) Color(0xFF4CAF50) else Color.Red,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 12.sp
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "$batteryLevel%", fontSize = 56.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "${currentMa}mA",
+                            fontSize = 28.sp,
+                            color = if (isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
+                        )
+                        Text(text = if (isCharging) "CHARGING" else "DISCHARGING", fontSize = 12.sp)
 
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(text = "Watch Data Monitor", fontSize = 18.sp, color = Color.Gray)
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 32.dp), thickness = 1.dp, color = Color.LightGray)
 
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(text = "$batteryLevel%", fontSize = 72.sp)
+                        // --- Phone セクション ---
+                        Text("PHONE MONITOR", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "$phoneLevel%", fontSize = 56.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "${phoneMa}mA",
+                            fontSize = 28.sp,
+                            color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
+                        )
+                        Text(text = if (isPhoneCharging) "CHARGING" else "DISCHARGING", fontSize = 12.sp)
 
-                        val statusColor = if (isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
-                        Text(text = "${currentMa}mA", fontSize = 48.sp, color = statusColor)
-                        Text(text = if (isCharging) "CHARGING" else "DISCHARGING", color = statusColor)
-
-                        Spacer(modifier = Modifier.height(40.dp))
-                        Text(text = "Last Sync: $lastSyncTime", fontSize = 12.sp, color = Color.LightGray)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(text = "Last Sync: $lastSyncTime", fontSize = 10.sp, color = Color.Gray)
                     }
                 }
             }
@@ -81,7 +109,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
     override fun onResume() {
         super.onResume()
         Wearable.getDataClient(this).addListener(this)
-        Log.d("BatterySync", "Phone: リスナーを登録しました。")
     }
 
     override fun onPause() {
@@ -89,22 +116,17 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
         Wearable.getDataClient(this).removeListener(this)
     }
 
-    // データを受信した時の処理
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
             if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/battery_status") {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-
                 currentMa = dataMap.getInt("current_ma")
                 batteryLevel = dataMap.getInt("level")
                 isCharging = dataMap.getBoolean("is_charging")
 
                 val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
                 lastSyncTime = sdf.format(Date())
-
-                // 受信した時刻をミリ秒で記録
                 lastSyncMillis = System.currentTimeMillis()
-                Log.d("BatterySync", "Phone: データ更新検知 - ${currentMa}mA")
             }
         }
     }
