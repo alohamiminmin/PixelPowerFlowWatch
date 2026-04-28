@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
 import android.util.Log
+import androidx.compose.ui.text.style.TextAlign
 
 // レシーバー
 class PowerConnectionReceiver : BroadcastReceiver() {
@@ -97,131 +98,138 @@ fun ChargingMonitorApp(activity: MainActivity) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
 
+    // --- フォントサイズ計算 ---
+    val largeFontSize = (screenWidth * 0.13).sp
+    val smallFontSize = (screenWidth * 0.07).sp
+
     var showSettings by remember { mutableStateOf(false) }
     var brightnessValue by remember { mutableFloatStateOf(0.05f) }
+
     var currentMaDisplay by remember { mutableIntStateOf(0) }
     var isCharging by remember { mutableStateOf(false) }
     var batteryLevel by remember { mutableIntStateOf(0) }
     var currentTime by remember { mutableStateOf("") }
     var currentDate by remember { mutableStateOf("") }
 
+    val customBlue = Color(0xFF3460FB)
+
     LaunchedEffect(Unit) {
-        val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         val dateFormat = SimpleDateFormat("MM/dd(E)", Locale.ENGLISH)
+        val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
         while (true) {
             val now = Date()
             val microAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-
-            android.util.Log.d("BatteryCheck", "取得した生の値(microAmps): $microAmps")
-
             currentMaDisplay = abs(microAmps / 1000)
 
-            android.util.Log.d("BatteryCheck", "表示用の値(mA): $currentMaDisplay")
-
             val status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
-            isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
+            isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    status == BatteryManager.BATTERY_STATUS_FULL)
+
             batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
             currentTime = timeFormat.format(now)
             currentDate = dateFormat.format(now)
 
-// Watch側の送信処理部分
+            // --- スマホ側へのデータ送信 (成功済みロジック) ---
             val putDataReq: PutDataRequest = PutDataMapRequest.create("/battery_status").run {
                 dataMap.putInt("current_ma", currentMaDisplay)
                 dataMap.putInt("level", batteryLevel)
                 dataMap.putBoolean("is_charging", isCharging)
-
-                // 毎回違う値を入れて強制同期させる
                 dataMap.putLong("timestamp", System.currentTimeMillis())
-
-                // 1. まず PutDataRequest 型に変換
                 asPutDataRequest()
-            }.setUrgent() // 2. その後で最優先設定をかける（ここがポイント）
+            }.setUrgent()
 
-// 送信実行
             dataClient.putDataItem(putDataReq)
-                .addOnSuccessListener {
-                    Log.d("BatterySync", "Watch: 送信成功！")
-                }
-                .addOnFailureListener { e ->
-                    Log.e("BatterySync", "Watch: 送信失敗...", e)
-                }
-            dataClient.putDataItem(putDataReq)
-                .addOnFailureListener { e -> Log.e("BatteryLog", "送信失敗", e) }
+                .addOnSuccessListener { Log.d("BatterySync", "Watch: 送信成功！") }
+                .addOnFailureListener { e -> Log.e("BatterySync", "Watch: 送信失敗", e) }
+
             delay(1000)
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    val maColor = if (isCharging) customBlue else Color.Red
+    val batteryColor = when {
+        batteryLevel < 15 -> Color.Red
+        batteryLevel < 30 -> Color.Yellow
+        batteryLevel < 60 -> Color.White
+        batteryLevel < 75 -> Color.Cyan
+        else -> Color.Green
+    }
+
+    MaterialTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { showSettings = true },
+            contentAlignment = Alignment.Center
         ) {
-            // 1. 日付 (曜日)
-            // 日付取得時に "yyyy/MM/dd (E)" などのフォーマットを使用している前提です
-            Text(
-                text = currentDate,
-                color = Color.Gray,
-                fontSize = (screenWidth * 0.07).sp,
-                style = MaterialTheme.typography.caption1
-            )
-
-            // 2. 時間
-            Text(
-                text = currentTime,
-                color = Color.Yellow,
-                fontSize = (screenWidth * 0.16).sp,
-                style = MaterialTheme.typography.display1
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 3. バッテリー残量 / 充放電流値
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
             ) {
+                // 1. 日付(曜日)
                 Text(
-                    text = "$batteryLevel%",
+                    text = currentDate,
+                    fontSize = smallFontSize,
                     color = Color.White,
-                    fontSize = (screenWidth * 0.1).sp,
-                    style = MaterialTheme.typography.body1
+                    textAlign = TextAlign.Center // シンプルに指定
                 )
+
+                // 2. 時刻
                 Text(
-                    text = " / ",
-                    color = Color.Gray,
-                    fontSize = (screenWidth * 0.08).sp
+                    text = currentTime,
+                    fontSize = largeFontSize,
+                    color = Color.Yellow,
+                    textAlign = TextAlign.Center
                 )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 3. バッテリー残量 ＋ 充放電電流値
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(text = "$batteryLevel%", fontSize = largeFontSize, color = batteryColor)
+                    Text(
+                        text = if (isCharging) " ▲ " else " ▼ ",
+                        fontSize = smallFontSize,
+                        color = maColor
+                    )
+                    Text(text = "${currentMaDisplay}mA", fontSize = largeFontSize, color = maColor)
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 4. 状態テキスト
                 Text(
-                    text = "${currentMaDisplay}mA",
-                    color = if (isCharging) Color.Green else Color.Red,
-                    fontSize = (screenWidth * 0.1).sp,
-                    style = MaterialTheme.typography.body1
+                    text = if (isCharging) "CHARGING" else "DISCHARGING",
+                    fontSize = smallFontSize,
+                    color = maColor,
+                    textAlign = TextAlign.Center
                 )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // 4. CHARGE / DISCHARGE 表記
-            Text(
-                text = if (isCharging) "CHARGE" else "DISCHARGE",
-                color = if (isCharging) Color.Green else Color.LightGray,
-                fontSize = (screenWidth * 0.08).sp,
-                style = MaterialTheme.typography.button
-            )
         }
     }
 
+    // 設定ダイアログ
     if (showSettings) {
         Dialog(showDialog = showSettings, onDismissRequest = { showSettings = false }) {
-            ScalingLazyColumn(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                item { Text("Settings", fontSize = 14.sp) }
+            val listState = rememberScalingLazyListState()
+            ScalingLazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().background(Color.Black)
+            ) {
+                item { Text("Settings", fontSize = 14.sp, color = Color.White) }
                 item {
-                    CompactButton(onClick = { brightnessValue = (brightnessValue + 0.1f).coerceAtMost(1f); activity.updateBrightness(brightnessValue) }) { Text("Brightness +") }
+                    CompactButton(
+                        onClick = {
+                            brightnessValue = (brightnessValue + 0.2f).let { if (it > 1f) 0.05f else it }
+                            activity.updateBrightness(brightnessValue)
+                        }
+                    ) { Text("Brightness Loop") }
                 }
                 item { CompactButton(onClick = { showSettings = false }) { Text("OK") } }
             }
