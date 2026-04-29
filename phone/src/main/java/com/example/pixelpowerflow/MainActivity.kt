@@ -9,6 +9,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,14 +25,20 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
 
+// Watch1台分のデータ
+data class WatchData(
+    val watchId: String,
+    val currentMa: Int = 0,
+    val batteryLevel: Int = 0,
+    val isCharging: Boolean = false,
+    val lastSyncMillis: Long = 0L,
+    val lastSyncTime: String = "No Data"
+)
+
 class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
 
-    // Watch側の状態
-    private var currentMa by mutableStateOf(0)
-    private var batteryLevel by mutableStateOf(0)
-    private var isCharging by mutableStateOf(false)
-    private var lastSyncTime by mutableStateOf("No Data")
-    private var lastSyncMillis by mutableStateOf(0L)
+    // Watch複数台分（watchId → データ）
+    private val watchDataMap = mutableStateMapOf<String, WatchData>()
 
     // Phone自身の状態
     private var phoneMa by mutableStateOf(0)
@@ -63,87 +71,49 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 }
             }
 
-            // 30秒以上データが来なければ切断とみなす
-            val isSyncing = (currentTimeMillis - lastSyncMillis) < 30000
-                    && lastSyncMillis != 0L
-
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Column(
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // --- Watch セクション ---
-                        Text(
-                            "WATCH MONITOR",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (isSyncing) "● SYNCING" else "○ DISCONNECTED",
-                            color = if (isSyncing) Color(0xFF4CAF50) else Color.Red,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "$batteryLevel%",
-                            fontSize = 56.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${currentMa}mA",
-                            fontSize = 28.sp,
-                            color = if (isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
-                        )
-                        Text(
-                            text = if (isCharging) "▲ CHARGING" else "▼ DISCHARGING",
-                            fontSize = 12.sp,
-                            color = if (isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
-                        )
+                        // --- Watch複数台 ---
+                        items(watchDataMap.values.toList()) { watch ->
+                            val isSyncing = (currentTimeMillis - watch.lastSyncMillis) < 30000
+                                    && watch.lastSyncMillis != 0L
+                            WatchCard(watch, isSyncing)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
 
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 32.dp),
-                            thickness = 1.dp,
-                            color = Color.LightGray
-                        )
+                        // Watchが1台も繋がっていない場合
+                        if (watchDataMap.isEmpty()) {
+                            item {
+                                Text(
+                                    "Watchを探しています...",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+
+                        item {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 16.dp),
+                                thickness = 1.dp,
+                                color = Color.LightGray
+                            )
+                        }
 
                         // --- Phone セクション ---
-                        Text(
-                            "PHONE MONITOR",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "$phoneLevel%",
-                            fontSize = 56.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${phoneMa}mA",
-                            fontSize = 28.sp,
-                            color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
-                        )
-                        Text(
-                            text = if (isPhoneCharging) "▲ CHARGING" else "▼ DISCHARGING",
-                            fontSize = 12.sp,
-                            color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        Text(
-                            text = "Last Sync: $lastSyncTime",
-                            fontSize = 10.sp,
-                            color = Color.Gray
-                        )
+                        item {
+                            PhoneCard(phoneMa, phoneLevel, isPhoneCharging)
+                        }
                     }
                 }
             }
@@ -161,8 +131,12 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
             }
             for (node in nodes) {
                 messageClient.sendMessage(node.id, path, null)
-                    .addOnSuccessListener { Log.d("PhoneMain", "$path → ${node.displayName} 送信成功") }
-                    .addOnFailureListener { e -> Log.e("PhoneMain", "$path 送信失敗", e) }
+                    .addOnSuccessListener {
+                        Log.d("PhoneMain", "$path → ${node.displayName} 送信成功")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("PhoneMain", "$path 送信失敗", e)
+                    }
             }
         }
     }
@@ -170,7 +144,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
     override fun onResume() {
         super.onResume()
         Wearable.getDataClient(this).addListener(this)
-        // Watch側BatteryServiceの起動を待って送信（500ms遅延）
         Handler(Looper.getMainLooper()).postDelayed({
             sendSignalToWatch("/start_sync")
         }, 500)
@@ -185,19 +158,110 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
             if (event.type == DataEvent.TYPE_CHANGED &&
-                event.dataItem.uri.path == "/battery_status") {
+                event.dataItem.uri.path?.startsWith("/battery_status/") == true) {
 
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-                currentMa = dataMap.getInt("current_ma")
-                batteryLevel = dataMap.getInt("level")
-                isCharging = dataMap.getBoolean("is_charging")
-
+                val watchId = dataMap.getString("watch_id") ?: "Unknown"
                 val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                lastSyncTime = sdf.format(Date())
-                lastSyncMillis = System.currentTimeMillis()
 
-                Log.d("PhoneMain", "データ受信: ${currentMa}mA, ${batteryLevel}%, charging=$isCharging")
+                watchDataMap[watchId] = WatchData(
+                    watchId      = watchId,
+                    currentMa    = dataMap.getInt("current_ma"),
+                    batteryLevel = dataMap.getInt("level"),
+                    isCharging   = dataMap.getBoolean("is_charging"),
+                    lastSyncMillis = System.currentTimeMillis(),
+                    lastSyncTime = sdf.format(Date())
+                )
+
+                Log.d("PhoneMain",
+                    "[$watchId] ${dataMap.getInt("current_ma")}mA " +
+                            "${dataMap.getInt("level")}% " +
+                            "charging=${dataMap.getBoolean("is_charging")}")
             }
         }
+    }
+}
+
+// --- Composable ---
+
+@Composable
+fun WatchCard(watch: WatchData, isSyncing: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = watch.watchId,
+                fontSize = 12.sp,
+                color = Color.Gray,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (isSyncing) "● SYNCING" else "○ DISCONNECTED",
+                color = if (isSyncing) Color(0xFF4CAF50) else Color.Red,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "${watch.batteryLevel}%",
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${watch.currentMa}mA",
+                fontSize = 24.sp,
+                color = if (watch.isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
+            )
+            Text(
+                text = if (watch.isCharging) "▲ CHARGING" else "▼ DISCHARGING",
+                fontSize = 12.sp,
+                color = if (watch.isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Last Sync: ${watch.lastSyncTime}",
+                fontSize = 10.sp,
+                color = Color.Gray
+            )
+        }
+    }
+}
+
+@Composable
+fun PhoneCard(phoneMa: Int, phoneLevel: Int, isPhoneCharging: Boolean) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "PHONE MONITOR",
+            fontSize = 12.sp,
+            color = Color.Gray,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "$phoneLevel%",
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "${phoneMa}mA",
+            fontSize = 24.sp,
+            color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
+        )
+        Text(
+            text = if (isPhoneCharging) "▲ CHARGING" else "▼ DISCHARGING",
+            fontSize = 12.sp,
+            color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
+        )
     }
 }

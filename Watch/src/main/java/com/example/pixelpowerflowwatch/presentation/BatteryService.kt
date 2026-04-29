@@ -25,11 +25,16 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
                 val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
 
-                val putDataReq = PutDataMapRequest.create("/battery_status").run {
+                // monitorRunnable内のputDataReq部分を修正
+                val watchId = android.os.Build.MODEL
+                    .replace(" ", "_")  // スペースをアンダースコアに
+
+                val putDataReq = PutDataMapRequest.create("/battery_status/$watchId").run {
                     dataMap.putInt("current_ma", ma)
                     dataMap.putInt("level", level)
                     dataMap.putBoolean("is_charging", isCharging)
                     dataMap.putLong("timestamp", System.currentTimeMillis())
+                    dataMap.putString("watch_id", watchId)  // ★ 識別用に名前も入れる
                     asPutDataRequest()
                 }.setUrgent()
 
