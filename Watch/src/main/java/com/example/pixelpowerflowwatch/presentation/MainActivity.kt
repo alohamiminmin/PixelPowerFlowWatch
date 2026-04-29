@@ -9,14 +9,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,18 +26,13 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.*
 import androidx.wear.compose.material.dialog.Dialog
-import com.google.android.gms.wearable.PutDataMapRequest
-import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
-import android.util.Log
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrightnessMedium
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Check
 import androidx.wear.compose.material.InlineSlider
 import androidx.compose.material.icons.filled.Add
@@ -278,22 +270,6 @@ fun ChargingMonitorApp(activity: MainActivity) {
                         )
                     }
                 }
-
-                // 2. テーマカラー変更ボタン（現在は青と白の切り替え例）
-                item {
-                    Chip(
-                        onClick = {
-                            // customBlue = if (customBlue == Color(0xFF3460FB)) Color.White else Color(0xFF3460FB)
-                            // ※ 色を状態変数として管理している場合はここで切り替え
-                        },
-                        label = { Text("Theme Color") },
-                        secondaryLabel = { Text("Blue / Red") },
-                        icon = { Icon(Icons.Default.Palette, null) },
-                        colors = ChipDefaults.secondaryChipColors(),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
                 // 3. OKボタン
