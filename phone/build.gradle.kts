@@ -6,19 +6,15 @@ plugins {
 
 android {
     namespace = "com.example.pixelpowerflow"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
+    // ← シンプルな記法に修正
 
     defaultConfig {
         applicationId = "com.example.pixelpowerflow"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -57,8 +53,12 @@ dependencies {
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.test.manifest)
     debugImplementation(libs.ui.tooling)
+
+    // Wearable
+    implementation(libs.play.services.wearable)
+
+    // Firebase（BOMで一元管理）
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
-    implementation(libs.firebase.firestore)
-    implementation(libs.play.services.wearable)
+    implementation(libs.firebase.database)
 }

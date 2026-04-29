@@ -20,12 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.wearable.*
+import com.google.firebase.database.FirebaseDatabase  // ★これだけ追加
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
 
-// Watch1台分のデータ
 data class WatchData(
     val watchId: String,
     val currentMa: Int = 0,
@@ -37,14 +37,17 @@ data class WatchData(
 
 class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
 
-    // Watch複数台分（watchId → データ）
     private val watchDataMap = mutableStateMapOf<String, WatchData>()
-
-    // Phone自身の状態
     private var phoneMa by mutableStateOf(0)
     private var phoneLevel by mutableStateOf(0)
     private var isPhoneCharging by mutableStateOf(false)
 
+    // Firebase
+// ✅ 修正（Firebaseコンソールに表示されているURLを直接指定）
+    private val db by lazy {
+        FirebaseDatabase.getInstance("https://battery-monitor-ee6ce-default-rtdb.asia-southeast1.firebasedatabase.app/")
+            .reference.child("powerflow")
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -67,6 +70,14 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                     isPhoneCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
                             status == BatteryManager.BATTERY_STATUS_FULL)
 
+                    // Phone自身のデータをFirebaseへ
+                    pushToFirebase(
+                        deviceId  = "Phone",
+                        currentMa = phoneMa,
+                        level     = phoneLevel,
+                        isCharging = isPhoneCharging
+                    )
+
                     delay(1000)
                 }
             }
@@ -82,7 +93,15 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // --- Watch複数台 ---
+                        item {
+                            Text(
+                                text = "🔥 Firebase Connected",
+                                fontSize = 11.sp,
+                                color = Color(0xFF4CAF50)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
                         items(watchDataMap.values.toList()) { watch ->
                             val isSyncing = (currentTimeMillis - watch.lastSyncMillis) < 30000
                                     && watch.lastSyncMillis != 0L
@@ -90,7 +109,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // Watchが1台も繋がっていない場合
                         if (watchDataMap.isEmpty()) {
                             item {
                                 Text(
@@ -110,14 +128,37 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                             )
                         }
 
-                        // --- Phone セクション ---
-                        item {
-                            PhoneCard(phoneMa, phoneLevel, isPhoneCharging)
-                        }
+                        item { PhoneCard(phoneMa, phoneLevel, isPhoneCharging) }
                     }
                 }
             }
         }
+    }
+
+    /** Firebase Realtime Database へ書き込み */
+    private fun pushToFirebase(
+        deviceId: String,
+        currentMa: Int,
+        level: Int,
+        isCharging: Boolean
+    ) {
+        // デバイス名のスラッシュ等を除去（Firebaseキーに使えない文字を除去）
+        val safeId = deviceId.replace(Regex("[.#$\\[\\]/]"), "_")
+
+        val data = mapOf(
+            "current_ma"  to currentMa,
+            "level"       to level,
+            "is_charging" to isCharging,
+            "timestamp"   to System.currentTimeMillis()
+        )
+
+        db.child("devices").child(safeId).setValue(data)
+            .addOnSuccessListener {
+                Log.d("Firebase", "[$safeId] 書き込み成功")
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firebase", "[$safeId] 書き込み失敗", e)
+            }
     }
 
     private fun sendSignalToWatch(path: String) {
@@ -165,12 +206,20 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
                 watchDataMap[watchId] = WatchData(
-                    watchId      = watchId,
-                    currentMa    = dataMap.getInt("current_ma"),
-                    batteryLevel = dataMap.getInt("level"),
-                    isCharging   = dataMap.getBoolean("is_charging"),
+                    watchId        = watchId,
+                    currentMa      = dataMap.getInt("current_ma"),
+                    batteryLevel   = dataMap.getInt("level"),
+                    isCharging     = dataMap.getBoolean("is_charging"),
                     lastSyncMillis = System.currentTimeMillis(),
-                    lastSyncTime = sdf.format(Date())
+                    lastSyncTime   = sdf.format(Date())
+                )
+
+                // FirebaseへWatch分も書き込み
+                pushToFirebase(
+                    deviceId  = watchId,
+                    currentMa = dataMap.getInt("current_ma"),
+                    level     = dataMap.getInt("level"),
+                    isCharging = dataMap.getBoolean("is_charging")
                 )
 
                 Log.d("PhoneMain",
@@ -198,39 +247,26 @@ fun WatchCard(watch: WatchData, isSyncing: Boolean) {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = watch.watchId,
-                fontSize = 12.sp,
-                color = Color.Gray,
-                fontWeight = FontWeight.Bold
-            )
+            Text(watch.watchId, fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
             Text(
                 text = if (isSyncing) "● SYNCING" else "○ DISCONNECTED",
                 color = if (isSyncing) Color(0xFF4CAF50) else Color.Red,
                 fontSize = 12.sp
             )
             Spacer(modifier = Modifier.height(8.dp))
+            Text("${watch.batteryLevel}%", fontSize = 48.sp, fontWeight = FontWeight.Bold)
             Text(
-                text = "${watch.batteryLevel}%",
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "${watch.currentMa}mA",
+                "${watch.currentMa}mA",
                 fontSize = 24.sp,
                 color = if (watch.isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
             )
             Text(
-                text = if (watch.isCharging) "▲ CHARGING" else "▼ DISCHARGING",
+                if (watch.isCharging) "▲ CHARGING" else "▼ DISCHARGING",
                 fontSize = 12.sp,
                 color = if (watch.isCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Last Sync: ${watch.lastSyncTime}",
-                fontSize = 10.sp,
-                color = Color.Gray
-            )
+            Text("Last Sync: ${watch.lastSyncTime}", fontSize = 10.sp, color = Color.Gray)
         }
     }
 }
@@ -241,25 +277,16 @@ fun PhoneCard(phoneMa: Int, phoneLevel: Int, isPhoneCharging: Boolean) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            "PHONE MONITOR",
-            fontSize = 12.sp,
-            color = Color.Gray,
-            fontWeight = FontWeight.Bold
-        )
+        Text("PHONE MONITOR", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
+        Text("$phoneLevel%", fontSize = 48.sp, fontWeight = FontWeight.Bold)
         Text(
-            text = "$phoneLevel%",
-            fontSize = 48.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "${phoneMa}mA",
+            "${phoneMa}mA",
             fontSize = 24.sp,
             color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
         )
         Text(
-            text = if (isPhoneCharging) "▲ CHARGING" else "▼ DISCHARGING",
+            if (isPhoneCharging) "▲ CHARGING" else "▼ DISCHARGING",
             fontSize = 12.sp,
             color = if (isPhoneCharging) Color(0xFF4285F4) else Color(0xFFEA4335)
         )

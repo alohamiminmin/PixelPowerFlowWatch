@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "238182072780",
-    "project_id": "pixelpowerflow",
-    "storage_bucket": "pixelpowerflow.firebasestorage.app"
+    "project_number": "974141027722",
+    "project_id": "battery-monitor-ee6ce",
+    "storage_bucket": "battery-monitor-ee6ce.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:238182072780:android:4adea7455306a756159d69",
+        "mobilesdk_app_id": "1:974141027722:android:5b03413b1de508d6d0c473",
         "android_client_info": {
           "package_name": "com.example.pixelpowerflow"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCfH2xECe-ntco62_l3AGmxqskln36hPXI"
+          "current_key": "AIzaSyA4gqoXM28-tmlAoyNlvocOL3uOjXFA2EY"
         }
       ],
       "services": {
