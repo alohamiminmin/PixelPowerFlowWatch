@@ -80,7 +80,15 @@ class MainActivity : ComponentActivity() {
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
         }
-        registerReceiver(chargerReceiver, IntentFilter(Intent.ACTION_POWER_CONNECTED))
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                chargerReceiver,
+                IntentFilter(Intent.ACTION_POWER_CONNECTED),
+                RECEIVER_EXPORTED
+            )
+        } else {
+            registerReceiver(chargerReceiver, IntentFilter(Intent.ACTION_POWER_CONNECTED))
+        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent { ChargingMonitorApp(this) }
     }

@@ -5,9 +5,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <uses-feature android:name="android.hardware.type.watch" android:required="true" />
 
@@ -34,6 +32,12 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".presentation.BatteryService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
             android:name=".presentation.ChargingReceiver"
             android:enabled="true"
@@ -43,12 +47,6 @@
                 <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
             </intent-filter>
         </receiver>
-
-        <service
-            android:name=".presentation.BatteryService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse" />
 
     </application>
 </manifest>

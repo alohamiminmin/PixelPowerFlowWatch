@@ -42,22 +42,13 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        createNotificationChannel()
-
-        // 通知をタップしたときにスマホアプリを起動するインテント（任意）
         val notification = NotificationCompat.Builder(this, "battery_channel")
-            .setContentTitle("Pixel Power Sync")
-            .setContentText("Monitoring battery in background...")
+            .setContentTitle("Battery Sync Mode")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true) // ユーザーが消せない通知にする
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setOngoing(true)
             .build()
 
-        startForeground(1, notification)
-
-        // もしスマホ側ですでにアプリが開いている状態でサービスが起動した場合に備え、
-        // 念のためここでもチェックを入れるとより安定します。
+        startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         return START_STICKY
     }
 
