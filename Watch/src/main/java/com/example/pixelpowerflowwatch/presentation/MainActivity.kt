@@ -77,6 +77,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ★ BatteryService起動（MessageClient待受を開始）
+        startForegroundService(Intent(this, BatteryService::class.java))
+
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
         }
@@ -89,10 +93,12 @@ class MainActivity : ComponentActivity() {
         } else {
             registerReceiver(chargerReceiver, IntentFilter(Intent.ACTION_POWER_CONNECTED))
         }
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // ★変更②: FLAG_KEEP_SCREEN_ON を削除（暗転を許可してバッテリー節約）
+        // window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) ← 削除
+
         setContent { ChargingMonitorApp(this) }
     }
-
     fun updateBrightness(brightness: Float) {
         val layoutParams = window.attributes
         layoutParams.screenBrightness = brightness.coerceIn(0.01f, 1.0f)
@@ -128,40 +134,31 @@ fun ChargingMonitorApp(activity: MainActivity) {
 
     val customBlue = Color(0xFF3460FB)
 
+// LaunchedEffect(Unit) 内を以下に置き換え
     LaunchedEffect(Unit) {
         val dateFormat = SimpleDateFormat("MM/dd(E)", Locale.ENGLISH)
         val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
         while (true) {
             val now = Date()
-            val microAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+            val microAmps = batteryManager.getIntProperty(
+                BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
             currentMaDisplay = abs(microAmps / 1000)
 
             val status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
             isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
                     status == BatteryManager.BATTERY_STATUS_FULL)
 
-            batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            batteryLevel = batteryManager.getIntProperty(
+                BatteryManager.BATTERY_PROPERTY_CAPACITY)
             currentTime = timeFormat.format(now)
             currentDate = dateFormat.format(now)
 
-            // --- スマホ側へのデータ送信 (成功済みロジック) ---
-            val putDataReq: PutDataRequest = PutDataMapRequest.create("/battery_status").run {
-                dataMap.putInt("current_ma", currentMaDisplay)
-                dataMap.putInt("level", batteryLevel)
-                dataMap.putBoolean("is_charging", isCharging)
-                dataMap.putLong("timestamp", System.currentTimeMillis())
-                asPutDataRequest()
-            }.setUrgent()
-
-            dataClient.putDataItem(putDataReq)
-                .addOnSuccessListener { Log.d("BatterySync", "Watch: 送信成功！") }
-                .addOnFailureListener { e -> Log.e("BatterySync", "Watch: 送信失敗", e) }
+            // ★ DataClient送信ブロックを全削除（BatteryServiceが担当）
 
             delay(1000)
         }
     }
-
     val maColor = if (isCharging) customBlue else Color.Red
     val batteryColor = when {
         batteryLevel < 15 -> Color.Red

@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="phone">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-28T09:27:29.159504100Z">
+        <DropdownSelection timestamp="2026-04-29T08:40:52.458535600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=RFCW40AP35Z" />
@@ -21,9 +21,9 @@
           </targets>
         </DialogSelection>
       </SelectionState>
-      <SelectionState runConfigName="Watch">
+      <SelectionState runConfigName="Wear App">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-29T07:42:31.675667700Z">
+        <DropdownSelection timestamp="2026-04-29T09:01:56.929860100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=3A021RTJWWDTG4" />

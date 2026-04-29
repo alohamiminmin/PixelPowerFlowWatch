@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- ★ connectedDevice は不要になったので削除 -->
 
     <uses-feature android:name="android.hardware.type.watch" android:required="true" />
 
@@ -32,19 +33,23 @@
             </intent-filter>
         </activity>
 
+        <!-- ★ BatteryServiceのみ残す -->
         <service
             android:name=".presentation.BatteryService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- ★ BatteryMonitorServiceは削除（ファイルも削除してOK） -->
+
         <receiver
             android:name=".presentation.ChargingReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter android:priority="1000">
-                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
-                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <!-- ★ ACTION_ が余分だったので修正 -->
+                <action android:name="android.intent.action.POWER_CONNECTED" />
+                <action android:name="android.intent.action.POWER_DISCONNECTED" />
             </intent-filter>
         </receiver>
 
