@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.services)
+    // ★ 削除
+    // alias(libs.plugins.google.services)
 }
 
 android {
@@ -57,8 +58,8 @@ dependencies {
     // Wearable
     implementation(libs.play.services.wearable)
 
-    // Firebase（BOMで一元管理）
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.database)
+    // ★ Firebase関連を全削除
+    // implementation(platform(libs.firebase.bom))
+    // implementation(libs.firebase.analytics)
+    // implementation(libs.firebase.database)
 }

@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.wearable.*
-import com.google.firebase.database.FirebaseDatabase  // ★これだけ追加
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -42,12 +41,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
     private var phoneLevel by mutableStateOf(0)
     private var isPhoneCharging by mutableStateOf(false)
 
-    // Firebase
-// ✅ 修正（Firebaseコンソールに表示されているURLを直接指定）
-    private val db by lazy {
-        FirebaseDatabase.getInstance("https://battery-monitor-ee6ce-default-rtdb.asia-southeast1.firebasedatabase.app/")
-            .reference.child("powerflow")
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -70,14 +63,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                     isPhoneCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
                             status == BatteryManager.BATTERY_STATUS_FULL)
 
-                    // Phone自身のデータをFirebaseへ
-                    pushToFirebase(
-                        deviceId  = "Phone",
-                        currentMa = phoneMa,
-                        level     = phoneLevel,
-                        isCharging = isPhoneCharging
-                    )
-
                     delay(1000)
                 }
             }
@@ -93,15 +78,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        item {
-                            Text(
-                                text = "🔥 Firebase Connected",
-                                fontSize = 11.sp,
-                                color = Color(0xFF4CAF50)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-
                         items(watchDataMap.values.toList()) { watch ->
                             val isSyncing = (currentTimeMillis - watch.lastSyncMillis) < 30000
                                     && watch.lastSyncMillis != 0L
@@ -133,32 +109,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 }
             }
         }
-    }
-
-    /** Firebase Realtime Database へ書き込み */
-    private fun pushToFirebase(
-        deviceId: String,
-        currentMa: Int,
-        level: Int,
-        isCharging: Boolean
-    ) {
-        // デバイス名のスラッシュ等を除去（Firebaseキーに使えない文字を除去）
-        val safeId = deviceId.replace(Regex("[.#$\\[\\]/]"), "_")
-
-        val data = mapOf(
-            "current_ma"  to currentMa,
-            "level"       to level,
-            "is_charging" to isCharging,
-            "timestamp"   to System.currentTimeMillis()
-        )
-
-        db.child("devices").child(safeId).setValue(data)
-            .addOnSuccessListener {
-                Log.d("Firebase", "[$safeId] 書き込み成功")
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firebase", "[$safeId] 書き込み失敗", e)
-            }
     }
 
     private fun sendSignalToWatch(path: String) {
@@ -212,14 +162,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                     isCharging     = dataMap.getBoolean("is_charging"),
                     lastSyncMillis = System.currentTimeMillis(),
                     lastSyncTime   = sdf.format(Date())
-                )
-
-                // FirebaseへWatch分も書き込み
-                pushToFirebase(
-                    deviceId  = watchId,
-                    currentMa = dataMap.getInt("current_ma"),
-                    level     = dataMap.getInt("level"),
-                    isCharging = dataMap.getBoolean("is_charging")
                 )
 
                 Log.d("PhoneMain",

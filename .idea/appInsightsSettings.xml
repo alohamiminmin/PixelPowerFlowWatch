@@ -10,9 +10,9 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.example.pixelpowerflow" />
-                  <option name="mobileSdkAppId" value="1:238182072780:android:4adea7455306a756159d69" />
-                  <option name="projectId" value="pixelpowerflow" />
-                  <option name="projectNumber" value="238182072780" />
+                  <option name="mobileSdkAppId" value="1:974141027722:android:5b03413b1de508d6d0c473" />
+                  <option name="projectId" value="battery-monitor-ee6ce" />
+                  <option name="projectNumber" value="974141027722" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
