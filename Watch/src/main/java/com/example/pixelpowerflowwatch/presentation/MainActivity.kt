@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
 fun ChargingMonitorApp(activity: MainActivity) {
     val context = activity as Context
     val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-    val dataClient = remember { Wearable.getDataClient(context) }
+    //val dataClient = remember { Wearable.getDataClient(context) }
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
 

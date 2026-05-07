@@ -26,9 +26,7 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
                         status == BatteryManager.BATTERY_STATUS_FULL
 
                 // monitorRunnable内のputDataReq部分を修正
-                val watchId = android.os.Build.MODEL
-                    .replace(" ", "_")  // スペースをアンダースコアに
-
+                val watchId = android.os.Build.MODEL.replace(" ", "_")  // スペースをアンダースコアに
                 val putDataReq = PutDataMapRequest.create("/battery_status/$watchId").run {
                     dataMap.putInt("current_ma", ma)
                     dataMap.putInt("level", level)

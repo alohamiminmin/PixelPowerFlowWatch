@@ -9,10 +9,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.pixelpowerflow" />
-                  <option name="mobileSdkAppId" value="1:974141027722:android:5b03413b1de508d6d0c473" />
-                  <option name="projectId" value="battery-monitor-ee6ce" />
-                  <option name="projectNumber" value="974141027722" />
+                  <option name="appId" value="PLACEHOLDER" />
+                  <option name="mobileSdkAppId" value="" />
+                  <option name="projectId" value="" />
+                  <option name="projectNumber" value="" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
