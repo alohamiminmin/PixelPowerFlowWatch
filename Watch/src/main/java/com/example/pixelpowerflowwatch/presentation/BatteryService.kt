@@ -14,35 +14,46 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
     private var isPhoneActive = false
     private var wakeLock: PowerManager.WakeLock? = null
 
+    // ★ 5回平均用履歴を追加
+    private val currentHistory = ArrayDeque<Int>(5)
+
     private val monitorRunnable = object : Runnable {
         override fun run() {
             if (isPhoneActive) {
                 val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-                // ★ abs()追加（元コードは符号付きのまま送信していた）
-                val ma = abs(bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) / 1000)
+
+                // ★ 5回平均でノイズ除去
+                val rawMa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) / 1000
+                currentHistory.addLast(rawMa)
+                if (currentHistory.size > 5) currentHistory.removeFirst()
+                val ma = abs(currentHistory.average().toInt())
+
                 val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
                 val status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
                 val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
 
-                // monitorRunnable内のputDataReq部分を修正
-                val watchId = android.os.Build.MODEL.replace(" ", "_")  // スペースをアンダースコアに
                 val putDataReq = PutDataMapRequest.create("/battery_status/$watchId").run {
                     dataMap.putInt("current_ma", ma)
                     dataMap.putInt("level", level)
                     dataMap.putBoolean("is_charging", isCharging)
                     dataMap.putLong("timestamp", System.currentTimeMillis())
-                    dataMap.putString("watch_id", watchId)  // ★ 識別用に名前も入れる
+                    dataMap.putString("watch_id", watchId)
                     asPutDataRequest()
                 }.setUrgent()
 
                 Wearable.getDataClient(applicationContext).putDataItem(putDataReq)
-                    .addOnSuccessListener { Log.d("BatteryService", "送信成功: ${ma}mA") }
-                    .addOnFailureListener { e -> Log.e("BatteryService", "送信失敗", e) }
+                    .addOnSuccessListener { Log.d(TAG, "送信成功: ${ma}mA") }
+                    .addOnFailureListener { e -> Log.e(TAG, "送信失敗", e) }
 
                 handler.postDelayed(this, 1000)
             }
         }
+    }
+    // watchIdの下に追加
+    private val watchId = android.os.Build.MODEL.replace(" ", "_")
+    companion object {
+        const val TAG = "BatteryService"
     }
 
     override fun onCreate() {
@@ -77,6 +88,7 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
             "/stop_sync" -> {
                 isPhoneActive = false
                 handler.removeCallbacks(monitorRunnable)
+                currentHistory.clear() // ★ 追加
                 releaseWakeLock()
                 Log.d("BatteryService", "Sync Stopped")
             }

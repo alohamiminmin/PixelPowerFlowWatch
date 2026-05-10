@@ -49,19 +49,30 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
         setContent {
             var currentTimeMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+// LaunchedEffect内の変数として追加
+            val phoneRawHistory = ArrayDeque<Int>(5)
+
             LaunchedEffect(Unit) {
                 while (true) {
                     currentTimeMillis = System.currentTimeMillis()
 
-                    val microAmps = batteryManager.getIntProperty(
+                    // ★ Phone電流値：単位がmAなのでそのまま使用・5回平均でノイズ除去
+                    val rawMa = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-                    phoneMa = abs(microAmps / 1000)
+                    phoneRawHistory.addLast(rawMa)
+                    if (phoneRawHistory.size > 5) phoneRawHistory.removeFirst()
+                    val avgRaw = phoneRawHistory.average().toInt()
+                    phoneMa = abs(avgRaw)
+
                     phoneLevel = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_CAPACITY)
                     val status = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_STATUS)
                     isPhoneCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
                             status == BatteryManager.BATTERY_STATUS_FULL)
+
+                    // ★ 確認用ログは削除
+                    // Log.d("PhoneMain", "Phone生の電流値: $rawMa")
 
                     delay(1000)
                 }
