@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 while (true) {
                     currentTimeMillis = System.currentTimeMillis()
 
-                    // ★ Phone電流値：単位がmAなのでそのまま使用・5回平均でノイズ除去
+                    // ★ Phone電流値：単位がmAなのでそのまま使用・5回平均でノイズ除去->μAとして*1000
                     val rawMa = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
                     phoneRawHistory.addLast(rawMa)
