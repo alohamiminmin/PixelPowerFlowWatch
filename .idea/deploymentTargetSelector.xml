@@ -23,10 +23,10 @@
       </SelectionState>
       <SelectionState runConfigName="Watch">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-29T10:43:07.094598Z">
+        <DropdownSelection timestamp="2026-08-30T05:12:01.829130700Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=3A021RTJWWDTG4" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=RFCW40AP35Z" />
             </handle>
           </Target>
         </DropdownSelection>
