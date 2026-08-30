@@ -56,13 +56,14 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 while (true) {
                     currentTimeMillis = System.currentTimeMillis()
 
-                    // ★ Phone電流値：単位がmAなのでそのまま使用・5回平均でノイズ除去->μAとして*1000
+                    // ★ Phone電流値：単位がmAなのでそのまま使用。Int.MIN_VALUE=取得失敗を除外し、absは履歴に積む前に取る
                     val rawMa = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-                    phoneRawHistory.addLast(rawMa)
-                    if (phoneRawHistory.size > 5) phoneRawHistory.removeFirst()
-                    val avgRaw = phoneRawHistory.average().toInt()
-                    phoneMa = abs(avgRaw)
+                    if (rawMa != Int.MIN_VALUE) {
+                        phoneRawHistory.addLast(abs(rawMa))
+                        if (phoneRawHistory.size > 5) phoneRawHistory.removeFirst()
+                    }
+                    phoneMa = if (phoneRawHistory.isNotEmpty()) phoneRawHistory.average().toInt() else 0
 
                     phoneLevel = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_CAPACITY)
@@ -89,6 +90,16 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        item {
+                            // ★ 監視はこの画面を開いている間のみ有効。制約をUIで明示しておく
+                            Text(
+                                "⚠ このアプリを開いている間のみ監視されます",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
                         items(watchDataMap.values.toList()) { watch ->
                             val isSyncing = (currentTimeMillis - watch.lastSyncMillis) < 30000
                                     && watch.lastSyncMillis != 0L

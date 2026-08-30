@@ -135,7 +135,9 @@ fun ChargingMonitorApp(activity: MainActivity) {
             val now = Date()
             val microAmps = batteryManager.getIntProperty(
                 BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-            currentMaDisplay = abs(microAmps / 1000)
+            if (microAmps != Int.MIN_VALUE) {  // ★ 取得失敗時は前回値を維持し、異常値を表示しない
+                currentMaDisplay = abs(microAmps / 1000)
+            }
 
             val status = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
             isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||

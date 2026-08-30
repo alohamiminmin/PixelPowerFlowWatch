@@ -22,11 +22,13 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
             if (isPhoneActive) {
                 val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
 
-                // ★ 5回平均でノイズ除去
-                val rawMa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) / 1000
-                currentHistory.addLast(rawMa)
-                if (currentHistory.size > 5) currentHistory.removeFirst()
-                val ma = abs(currentHistory.average().toInt())
+                // ★ 5回平均でノイズ除去（Int.MIN_VALUE=取得失敗を除外し、absは履歴に積む前に取る）
+                val rawMicroAmps = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+                if (rawMicroAmps != Int.MIN_VALUE) {
+                    currentHistory.addLast(abs(rawMicroAmps / 1000))
+                    if (currentHistory.size > 5) currentHistory.removeFirst()
+                }
+                val ma = if (currentHistory.isNotEmpty()) currentHistory.average().toInt() else 0
 
                 val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
                 val status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
@@ -102,8 +104,9 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
             PowerManager.PARTIAL_WAKE_LOCK,
             "PixelPowerFlow::BatteryLock"
         ).apply {
-            // ★ 時間制限なし（Phone側が /stop_sync を送るまで保持）
-            acquire()
+            // ★ 3時間の安全装置。stop_syncが届かなくても自動解放される（無期限保持による電池消費を防止）
+            // 通常の充電1回分より十分長いので、正常なセッション中に切れることはない想定
+            acquire(3 * 60 * 60 * 1000L)
         }
         Log.d("BatteryService", "WakeLock acquired")
     }
