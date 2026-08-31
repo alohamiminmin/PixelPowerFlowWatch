@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="phone">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-31T03:14:33.671402800Z">
+        <DropdownSelection timestamp="2026-08-31T04:04:37.305613Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="Wireless" identifier="serviceName=adb-3A021RTJWWDTG4-4LsSAY" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=3A021RTJWWDTG4" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -23,10 +23,10 @@
       </SelectionState>
       <SelectionState runConfigName="Watch">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-08-30T05:12:01.829130700Z">
+        <DropdownSelection timestamp="2026-08-31T04:34:59.842842100Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=RFCW40AP35Z" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=3A021RTJWWDTG4" />
             </handle>
           </Target>
         </DropdownSelection>

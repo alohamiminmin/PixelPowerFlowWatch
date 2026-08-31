@@ -78,14 +78,16 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
     }
 
     override fun onMessageReceived(event: MessageEvent) {
+        Log.d("BatteryService", "onMessageReceived: ${event.path}")
         when (event.path) {
             "/start_sync" -> {
-                if (!isPhoneActive) {
-                    isPhoneActive = true
-                    acquireWakeLock()
-                    handler.post(monitorRunnable)
-                    Log.d("BatteryService", "Sync Started")
-                }
+                // ★ isPhoneActiveが以前のセッションからtrueのまま残っていても必ず(再)開始する
+                //   （旧: if (!isPhoneActive)ガードにより、状態が残っていると無反応になっていた）
+                isPhoneActive = true
+                acquireWakeLock()
+                handler.removeCallbacks(monitorRunnable) // 二重スケジュール防止
+                handler.post(monitorRunnable)
+                Log.d("BatteryService", "Sync Started")
             }
             "/stop_sync" -> {
                 isPhoneActive = false

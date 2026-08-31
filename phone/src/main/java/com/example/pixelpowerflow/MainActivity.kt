@@ -65,12 +65,18 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                     }
                     phoneMa = if (phoneRawHistory.isNotEmpty()) phoneRawHistory.average().toInt() else 0
 
-                    phoneLevel = batteryManager.getIntProperty(
+                    // ★ CURRENT_NOWと同様、この端末ではCAPACITY/STATUSも未対応(Int.MIN_VALUE)を返すことがあるため、
+                    //   その場合は直前の値を維持する（0%表示やDISCHARGING誤表示を避ける）
+                    val newLevel = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                    if (newLevel != Int.MIN_VALUE) phoneLevel = newLevel
+
                     val status = batteryManager.getIntProperty(
                         BatteryManager.BATTERY_PROPERTY_STATUS)
-                    isPhoneCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                            status == BatteryManager.BATTERY_STATUS_FULL)
+                    if (status != Int.MIN_VALUE) {
+                        isPhoneCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                status == BatteryManager.BATTERY_STATUS_FULL)
+                    }
 
                     // ★ 確認用ログは削除
                     // Log.d("PhoneMain", "Phone生の電流値: $rawMa")
