@@ -60,9 +60,22 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
 
     override fun onCreate() {
         super.onCreate()
-        Wearable.getMessageClient(this).addListener(this)
+        registerMessageListener()
         createNotificationChannel()
         Log.d("BatteryService", "Service created")
+    }
+
+    // ★ 起動直後（特にBootReceiver経由）はPlay Servicesの準備が間に合わず、
+    //   リスナー登録自体が失敗することがあるため、成否を確認し失敗時はリトライする
+    private fun registerMessageListener() {
+        Wearable.getMessageClient(this).addListener(this)
+            .addOnSuccessListener {
+                Log.d("BatteryService", "MessageListener registered")
+            }
+            .addOnFailureListener { e ->
+                Log.e("BatteryService", "MessageListener registration failed, retrying in 3s", e)
+                Handler(Looper.getMainLooper()).postDelayed({ registerMessageListener() }, 3000)
+            }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
