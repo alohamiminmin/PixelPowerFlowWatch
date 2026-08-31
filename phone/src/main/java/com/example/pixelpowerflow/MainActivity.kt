@@ -131,7 +131,6 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
                 Log.w("PhoneMain", "接続中のWatchなし: $path 送信スキップ")
                 return@addOnSuccessListener
             }
-            Log.d("PhoneMain", "接続中Watch: ${nodes.map { it.displayName }} → $path 送信")
             for (node in nodes) {
                 messageClient.sendMessage(node.id, path, null)
                     .addOnSuccessListener {
@@ -144,24 +143,16 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
         }
     }
 
-    private val sendSyncRunnable = object : Runnable {
-        override fun run() {
-            sendSignalToWatch("/start_sync")
-            // ★ 一発送りだとWear接続準備中に落ちて Watchが永遠に起動しないため、
-            //   画面を開いている間は3秒ごとに(再)送信して確実に同期を開始・維持する
-            Handler(Looper.getMainLooper()).postDelayed(this, 3000)
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         Wearable.getDataClient(this).addListener(this)
-        Handler(Looper.getMainLooper()).postDelayed(sendSyncRunnable, 500)
+        Handler(Looper.getMainLooper()).postDelayed({
+            sendSignalToWatch("/start_sync")
+        }, 500)
     }
 
     override fun onPause() {
         super.onPause()
-        Handler(Looper.getMainLooper()).removeCallbacks(sendSyncRunnable)
         sendSignalToWatch("/stop_sync")
         Wearable.getDataClient(this).removeListener(this)
     }
