@@ -259,16 +259,16 @@ fun ChargingMonitorApp(activity: MainActivity) {
                         InlineSlider(
                             value = brightnessValue,
                             onValueChange = { newValue ->
-                                // ★ InlineSliderがsteps/valueRangeから自動でスナップした値をそのまま使う。
-                                //   toInt()での再丸め込みは切り捨てになり、上限付近の値がずれる原因になっていたため廃止
-                                brightnessValue = newValue.coerceIn(0.05f, 1.0f)
+                                // 0.01 (1%) 単位で丸めて設定 (範囲: 0.01 ~ 1.0)。roundToIntで四捨五入（toIntは切り捨てなので注意）
+                                val roundedValue = (newValue * 100).roundToInt() / 100f
+                                brightnessValue = roundedValue.coerceIn(0.01f, 1.0f)
                                 activity.updateBrightness(brightnessValue)
                             },
                             increaseIcon = { Icon(Icons.Default.Add, "Increase") },
                             decreaseIcon = { Icon(Icons.Default.Remove, "Decrease") },
-                            // ★ 1%刻み(steps=99)はInlineSlider向けには細かすぎたため、5%刻み(20段階)に変更
-                            steps = 18,
-                            valueRange = 0.05f..1f,
+                            // 1%刻みで動くようにステップ数を設定 (100段階)。valueRangeも含め元の値に戻した
+                            steps = 99,
+                            valueRange = 0f..1f,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
