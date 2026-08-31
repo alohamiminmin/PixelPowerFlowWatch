@@ -31,6 +31,7 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -243,14 +244,14 @@ fun ChargingMonitorApp(activity: MainActivity) {
                     )
                 }
 
-// 1. 明るさ調整スライダー (1%刻み)
+// 1. 明るさ調整スライダー (5%刻み)
                 item {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                     ) {
                         Text(
-                            text = "Brightness: ${(brightnessValue * 100).toInt()}%",
+                            text = "Brightness: ${(brightnessValue * 100).roundToInt()}%",
                             fontSize = 12.sp,
                             color = Color.White
                         )
@@ -258,16 +259,16 @@ fun ChargingMonitorApp(activity: MainActivity) {
                         InlineSlider(
                             value = brightnessValue,
                             onValueChange = { newValue ->
-                                // 0.01 (1%) 単位で丸めて設定 (範囲: 0.01 ~ 1.0)
-                                val roundedValue = (newValue * 100).toInt() / 100f
-                                brightnessValue = roundedValue.coerceIn(0.01f, 1.0f)
+                                // ★ InlineSliderがsteps/valueRangeから自動でスナップした値をそのまま使う。
+                                //   toInt()での再丸め込みは切り捨てになり、上限付近の値がずれる原因になっていたため廃止
+                                brightnessValue = newValue.coerceIn(0.05f, 1.0f)
                                 activity.updateBrightness(brightnessValue)
                             },
                             increaseIcon = { Icon(Icons.Default.Add, "Increase") },
                             decreaseIcon = { Icon(Icons.Default.Remove, "Decrease") },
-                            // 1%刻みで動くようにステップ数を設定 (100段階)
-                            steps = 99,
-                            valueRange = 0f..1f,
+                            // ★ 1%刻み(steps=99)はInlineSlider向けには細かすぎたため、5%刻み(20段階)に変更
+                            steps = 18,
+                            valueRange = 0.05f..1f,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
