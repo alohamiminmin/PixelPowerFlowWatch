@@ -127,11 +127,14 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
         val messageClient = Wearable.getMessageClient(this)
 
         nodeClient.connectedNodes.addOnSuccessListener { nodes ->
-            if (nodes.isEmpty()) {
-                Log.w("PhoneMain", "接続中のWatchなし: $path 送信スキップ")
+            // ★ 古いTicWatch Pro 5がペアリング済みで自動再接続の対象になるため、
+            //   送信先を現在のPixel Watch 2に限定する（名前不一致はスキップ）
+            val targets = nodes.filter { it.displayName == "Google Pixel Watch 2" }
+            if (targets.isEmpty()) {
+                Log.w("PhoneMain", "Pixel Watch 2が接続中なし(${nodes.map { it.displayName }}) : $path 送信スキップ")
                 return@addOnSuccessListener
             }
-            for (node in nodes) {
+            for (node in targets) {
                 messageClient.sendMessage(node.id, path, null)
                     .addOnSuccessListener {
                         Log.d("PhoneMain", "$path → ${node.displayName} 送信成功")
@@ -143,16 +146,24 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener {
         }
     }
 
+    private val sendSyncRunnable = object : Runnable {
+        override fun run() {
+            sendSignalToWatch("/start_sync")
+            // ★ 一発送りだとWear接続準備中に落ちて Watchが永遠に起動しないため、
+            //   画面を開いている間は3秒ごとに(再)送信して確実に同期を開始・維持する
+            Handler(Looper.getMainLooper()).postDelayed(this, 3000)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         Wearable.getDataClient(this).addListener(this)
-        Handler(Looper.getMainLooper()).postDelayed({
-            sendSignalToWatch("/start_sync")
-        }, 500)
+        Handler(Looper.getMainLooper()).postDelayed(sendSyncRunnable, 500)
     }
 
     override fun onPause() {
         super.onPause()
+        Handler(Looper.getMainLooper()).removeCallbacks(sendSyncRunnable)
         sendSignalToWatch("/stop_sync")
         Wearable.getDataClient(this).removeListener(this)
     }

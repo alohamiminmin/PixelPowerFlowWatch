@@ -2,6 +2,7 @@ package com.example.pixelpowerflowwatch.presentation
 
 import android.app.*
 import android.content.*
+import android.content.pm.ServiceInfo
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -85,8 +86,12 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
             .build()
-        startForeground(1, notification,
-            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        try {
+            startForeground(1, notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } catch (e: Exception) {
+            Log.e("BatteryService", "startForeground failed", e)
+        }
         return START_STICKY
     }
 
