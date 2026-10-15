@@ -146,12 +146,29 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    override fun onDestroy() {
-        isPhoneActive = false
-        handler.removeCallbacks(monitorRunnable)
-        Wearable.getMessageClient(this).removeListener(this)
-        releaseWakeLock()
-        super.onDestroy()
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val notification = NotificationCompat.Builder(this, "battery_channel")
+            .setContentTitle("Battery Sync Mode")
+            .setContentText("Waiting for phone...")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setOngoing(true)
+            .build()
+
+        try {
+            // OSが許可している場合はFGSとして起動
+            startForeground(1, notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            Log.d("BatteryService", "Successfully started as Foreground Service.")
+        } catch (e: SecurityException) {
+            // ★ FGSの起動がセキュリティ制限で拒否された場合、
+            // FGSではなく通常のサービスとして起動し、ログに記録するだけ
+            Log.w("BatteryService", "Foreground Service denied (SecurityException). Running as background service.")
+        } catch (e: Exception) {
+            // その他の予期せぬ例外
+            Log.e("BatteryService", "Error during onStartCommand", e)
+        }
+
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
