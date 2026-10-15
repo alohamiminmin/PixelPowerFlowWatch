@@ -21,7 +21,7 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
     private val monitorRunnable = object : Runnable {
         override fun run() {
             if (isPhoneActive) {
-                val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
 
                 // ★ 5回平均でノイズ除去（Int.MIN_VALUE=取得失敗を除外し、absは履歴に積む前に取る）
                 val rawMicroAmps = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
@@ -54,7 +54,7 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
         }
     }
     // watchIdの下に追加
-    private val watchId = android.os.Build.MODEL.replace(" ", "_")
+    private val watchId = Build.MODEL.replace(" ", "_")
     companion object {
         const val TAG = "BatteryService"
     }
@@ -86,12 +86,21 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
             .build()
+
         try {
+            // OSが許可している場合はFGSとして起動
             startForeground(1, notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            Log.d("BatteryService", "Successfully started as Foreground Service.")
+        } catch (e: SecurityException) {
+            // ★ FGSの起動がセキュリティ制限で拒否された場合、
+            // FGSではなく通常のサービスとして起動し、ログに記録するだけ
+            Log.w("BatteryService", "Foreground Service denied (SecurityException). Running as background service.")
         } catch (e: Exception) {
-            Log.e("BatteryService", "startForeground failed", e)
+            // その他の予期せぬ例外
+            Log.e("BatteryService", "Error during onStartCommand", e)
         }
+
         return START_STICKY
     }
 
@@ -119,7 +128,7 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
 
     private fun acquireWakeLock() {
         releaseWakeLock() // 二重取得防止
-        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "PixelPowerFlow::BatteryLock"
@@ -144,31 +153,6 @@ class BatteryService : Service(), MessageClient.OnMessageReceivedListener {
             "battery_channel", "Battery Sync", NotificationManager.IMPORTANCE_MIN
         )
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = NotificationCompat.Builder(this, "battery_channel")
-            .setContentTitle("Battery Sync Mode")
-            .setContentText("Waiting for phone...")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)
-            .build()
-
-        try {
-            // OSが許可している場合はFGSとして起動
-            startForeground(1, notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-            Log.d("BatteryService", "Successfully started as Foreground Service.")
-        } catch (e: SecurityException) {
-            // ★ FGSの起動がセキュリティ制限で拒否された場合、
-            // FGSではなく通常のサービスとして起動し、ログに記録するだけ
-            Log.w("BatteryService", "Foreground Service denied (SecurityException). Running as background service.")
-        } catch (e: Exception) {
-            // その他の予期せぬ例外
-            Log.e("BatteryService", "Error during onStartCommand", e)
-        }
-
-        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

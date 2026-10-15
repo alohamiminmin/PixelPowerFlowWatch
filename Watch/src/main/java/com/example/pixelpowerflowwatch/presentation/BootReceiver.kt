@@ -1,5 +1,6 @@
 package com.example.pixelpowerflowwatch.presentation
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -16,7 +17,9 @@ class BootReceiver : BroadcastReceiver() {
             val serviceIntent = Intent(context, BatteryService::class.java)
 
             // サービスがすでに実行中であれば起動しない（二重起動防止）
-            if (context.shreddedService(BatteryService::class.java)) {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val isRunning = activityManager.getRunningServices(Int.MAX_VALUE).any { it.service.className == "com.example.pixelpowerflowwatch.presentation.BatteryService" }
+            if (isRunning) {
                 Log.i("BootReceiver", "BatteryService is already running.")
                 return
             }
